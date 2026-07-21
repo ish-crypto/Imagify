@@ -4,10 +4,16 @@ import jwt from 'jsonwebtoken'
 import razorpay from 'razorpay'
 import transactionModel from '../models/transactionModel.js'
 
-const razorpayInstance = new razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Lazy initialize Razorpay — only create instance when credentials are available
+const getRazorpayInstance = () => {
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+        throw new Error('Razorpay credentials not configured');
+    }
+    return new razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+    });
+};
 
 /**
  * @param {import('express').Request} req
@@ -144,6 +150,7 @@ const paymentRazorpay = async (req, res) => {
             receipt: newTransaction._id.toString()
         };
 
+        const razorpayInstance = getRazorpayInstance();
         await razorpayInstance.orders.create(options, (error, order) => {
             if (error) {
                 console.log(error);
@@ -165,6 +172,7 @@ const paymentRazorpay = async (req, res) => {
 const verifyRazorpay = async (req, res) => {
     try {
         const { razorpay_order_id } = req.body;
+        const razorpayInstance = getRazorpayInstance();
         const orderInfo = await razorpayInstance.orders.fetch(razorpay_order_id);
         
         if (orderInfo.status === 'paid') {
@@ -199,4 +207,5 @@ const verifyRazorpay = async (req, res) => {
     }
 }
 
-export { registerUser, loginUser, userCredit, paymentRazorpay, verifyRazorpay }          
+export { registerUser, loginUser, userCredit, paymentRazorpay, verifyRazorpay }
+
